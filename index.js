@@ -2,7 +2,6 @@ var sax = require('sax');
 var BufferedStream = require('bufferedstream');
 var Middle = require('middle');
 var select = require('./lib/select');
-var log = require('util').log;
 
 module.exports = function (opts) {
     if (!opts) opts = {};
