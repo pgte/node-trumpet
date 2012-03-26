@@ -19,10 +19,6 @@ module.exports = function (opts) {
     var bufferedStream = new BufferedStream(1024);
     var middle = new Middle(bufferedStream, stream);
 
-    middle.on('data', function(d) {
-        console.log('ECHO ' + JSON.stringify(d))
-    })
-
     middle.select = function() {
         return stream.select.apply(stream, arguments);
     }
@@ -95,15 +91,12 @@ module.exports = function (opts) {
         if (paused) { throw new Error('Paused, should not have events'); }
         parser.pause();
         stream.pre('close', name, function() {
-            console.error('parser.onclosetag called back');
-            log('callback')
             if (cbed) { throw new Error('double callback') }
             cbed = true;
             update('close');
             stream.post('close', name);
             parser.resume();
         });
-        console.error('end onclosetag');
     };
     
     parser.ontext = function (text) {
