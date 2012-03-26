@@ -9,7 +9,9 @@
         "test" : "test"
     },
     "dependencies" : {
-        "sax" : "~0.3.5"
+        "sax" : "~0.3.5",
+        "bufferedstream": "*",
+        "middle": "*"
     },
     "devDependencies" : {
         "tap" : "~0.2.3"

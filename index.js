@@ -1,5 +1,8 @@
 var sax = require('sax');
+var BufferedStream = require('bufferedstream');
+var Middle = require('middle');
 var select = require('./lib/select');
+var log = require('util').log;
 
 module.exports = function (opts) {
     if (!opts) opts = {};
@@ -13,14 +16,20 @@ module.exports = function (opts) {
     
     var parser = sax.parser(false);
     var stream = select(parser, opts);
-    
-    function write (buf) {
-        stream.emit('data', buf);
+    var bufferedStream = new BufferedStream(1024);
+    var middle = new Middle(bufferedStream, stream);
+
+    middle.on('data', function(d) {
+        console.log('ECHO ' + JSON.stringify(d))
+    })
+
+    middle.select = function() {
+        return stream.select.apply(stream, arguments);
     }
     
     var buffered = '';
     var pos = 0;
-    var update = function (type, tag) {
+    function update (type, tag) {
         if (type === 'script') {
             var len = tag.length;
         }
@@ -50,21 +59,51 @@ module.exports = function (opts) {
         
         if (pos < parser.position) {
             var s = buffered.slice(0, parser.position - pos);
-            stream.raw(s);
+            stream.raw(s, false);
         }
-        stream.emit('end');
+        parser.close()
     };
+
+    parser.onend = function() {
+        stream.emit('end');
+    }
     
     parser.onopentag = function (tag) {
         stream.pre('open', tag);
         update('open', tag);
         stream.post('open', tag);
     };
-    
+
+    var paused = false;
+
+    oldResume = parser.resume;
+    parser.resume = function() {
+        paused = false;
+        oldResume.call(parser);
+        bufferedStream.resume();
+    }
+
+    oldPause = parser.pause;
+    parser.pause = function() {
+        bufferedStream.pause();
+        paused = true;
+        oldPause.call(parser);
+    }
+
     parser.onclosetag = function (name) {
-        stream.pre('close', name);
-        update('close');
-        stream.post('close', name);
+        var cbed = false;
+        if (paused) { throw new Error('Paused, should not have events'); }
+        parser.pause();
+        stream.pre('close', name, function() {
+            console.error('parser.onclosetag called back');
+            log('callback')
+            if (cbed) { throw new Error('double callback') }
+            cbed = true;
+            update('close');
+            stream.post('close', name);
+            parser.resume();
+        });
+        console.error('end onclosetag');
     };
     
     parser.ontext = function (text) {
@@ -78,6 +117,6 @@ module.exports = function (opts) {
         update('script', src);
         stream.post('script', src);
     };
-    
-    return stream;
+
+    return middle;
 };

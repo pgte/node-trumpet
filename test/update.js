@@ -8,8 +8,6 @@ test('update', function (t) {
     var tr = trumpet();
     fs.createReadStream(__dirname + '/update.html').pipe(tr);
     
-    var spans = [ 'tacos', 'y', 'burritos' ];
-    
     tr.select('.b span', function (node) {
         node.update(function (html) {
             return html.toUpperCase();
@@ -34,7 +32,7 @@ test('update', function (t) {
     
     var data = '';
     tr.on('data', function (buf) { data += buf });
-    
+
     tr.on('end', function () {
         t.equal(data, html);
         t.end();
