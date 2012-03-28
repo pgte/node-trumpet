@@ -31,7 +31,7 @@ test('update_async', function (t) {
     tr.select('.f', function (node) {
         node.replace(function(html, done) {
             setTimeout(function() {
-              done('<b>NOTHING TO SEE HERE</b>');  
+              done('<b>NOTHING TO SEE HERE</b>');
             }, 100);
         });
     });
