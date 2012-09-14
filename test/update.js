@@ -16,7 +16,7 @@ test('update', function (t) {
             return html.toUpperCase();
         });
     });
-    
+
     tr.select('.c', function (node) {
         node.update('---');
     });
