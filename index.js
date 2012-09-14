@@ -43,7 +43,12 @@ module.exports = function (opts) {
     
     var buffered = '';
     var pos = 0;
-    var update = function (type, tag) {
+    var update = function (type, tag, done) {
+        if (typeof tag === 'function') {
+            done = tag;
+            tag = undefined;
+        }
+
         if (type === 'script') {
             var len = tag.length;
         }
@@ -62,7 +67,7 @@ module.exports = function (opts) {
         var src = buffered.slice(0, len);
         buffered = buffered.slice(len);
         
-        stream.raw(src);
+        stream.raw(src, done);
         return src;
     };
     
@@ -77,15 +82,18 @@ module.exports = function (opts) {
         
         if (pos < parser.position) {
             var s = buffered.slice(0, parser.position - pos);
-            stream.raw(s);
-        }
-        stream.emit('end');
+            stream.raw(s, function() {
+                stream.emit('end');
+            });
+        } else { stream.emit('end'); }
+        
     };
     
     parser.onopentag = function (tag) {
         stream.pre('open', tag);
-        update('open', tag);
-        stream.post('open', tag);
+        update('open', tag, function() {
+            stream.post('open', tag);
+        });
     };
 
     //
@@ -111,22 +119,25 @@ module.exports = function (opts) {
     parser.onclosetag = function (name) {
         parser.pause();
         stream.pre('close', name, function() {
-            update('close');
-            stream.post('close', name);
-            parser.resume();
+            update('close', function() {
+                stream.post('close', name);
+                parser.resume();
+            });
         });
     };
     
     parser.ontext = function (text) {
         stream.pre('text', text);
-        update('text');
-        stream.post('text', text);
+        update('text', function() {
+            stream.post('text', text);
+        });
     };
     
     parser.onscript = function (src) {
         stream.pre('script', src);
-        update('script', src);
-        stream.post('script', src);
+        update('script', src, function() {
+            stream.post('script', src);
+        });
     };
     
     return middle;
