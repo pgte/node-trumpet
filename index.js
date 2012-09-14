@@ -110,10 +110,11 @@ module.exports = function (opts) {
     
     parser.onclosetag = function (name) {
         parser.pause();
-        stream.pre('close', name);
-        update('close');
-        stream.post('close', name);
-        parser.resume();
+        stream.pre('close', name, function() {
+            update('close');
+            stream.post('close', name);
+            parser.resume();
+        });
     };
     
     parser.ontext = function (text) {
