@@ -3,28 +3,33 @@ var trumpet = require('../');
 var fs = require('fs');
 var BufferedStream = require('bufferedstream');
 
-test('update streaming', function (t) {
+test('compose with streams', function (t) {
     t.plan(2);
-    var html = fs.readFileSync(__dirname + '/update_target.html', 'utf8');
+    var html = fs.readFileSync(__dirname + '/compose_target.html', 'utf8');
 
     var tr = trumpet();
-    fs.createReadStream(__dirname + '/update.html').pipe(tr);
+    fs.createReadStream(__dirname + '/compose.html').pipe(tr);
     
     var spans = [ 'tacos', 'y', 'burritos' ];
     
     tr.select('.b span', function (node) {
         node.update(function (html) {
-            var stream = new BufferedStream();
-            stream.end(html.toUpperCase());
-            return stream;
+            var tr = trumpet();
+            fs.createReadStream(__dirname + '/partial.html').pipe(tr);
+            return tr;
         });
     });
 
     tr.select('.c', function (node) {
         node.update(function() {
-            var stream = new BufferedStream();
-            stream.end('---');
-            return stream;
+            var tr = trumpet();
+            fs.createReadStream(__dirname + '/partial.html').pipe(tr);
+            tr.select('.b span', function(node) {
+                node.update(function(html) {
+                    return html.toUpperCase();
+                });
+            });
+            return tr;
         });
     });
     
