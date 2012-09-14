@@ -77,15 +77,14 @@ module.exports = function (opts) {
         parser.write(buf.toString());
     };
     
-    stream.end = function (buf) {
+    stream.end = function (buf, next) {
         if (buf !== undefined) stream.write(buf);
         
         if (pos < parser.position) {
             var s = buffered.slice(0, parser.position - pos);
-            stream.raw(s, function() {
-                stream.emit('end');
-            });
-        } else { stream.emit('end'); }
+            stream.raw(s);
+        }
+        parser.close();
         
     };
     
@@ -94,6 +93,10 @@ module.exports = function (opts) {
         update('open', tag, function() {
             stream.post('open', tag);
         });
+    };
+
+    parser.onend = function() {
+        stream.emit('end');
     };
 
     //
