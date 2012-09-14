@@ -1,5 +1,7 @@
 var sax = require('sax');
 var select = require('./lib/select');
+var BufferedStream = require('bufferedstream');
+var Middle = require('middle');
 
 module.exports = function (opts) {
     if (!opts) opts = {};
@@ -10,9 +12,26 @@ module.exports = function (opts) {
         ];
     }
     opts.special = opts.special.map(function (x) { return x.toUpperCase() });
+    if (! opts.bufferSize) { opts.bufferSize = 1024; }
     
     var parser = sax.parser(false);
     var stream = select(parser, opts);
+
+    var bufferedStream = new BufferedStream(opts.bufferSize);
+    var middle = new Middle(bufferedStream, stream);
+
+    middle.select = function() {
+        return stream.select.apply(stream, arguments);
+    };
+    middle.update = function() {
+        return stream.update.apply(stream, arguments);
+    };
+    middle.remove = function() {
+        return stream.remove.apply(stream, arguments);
+    };
+    middle.replace = function() {
+        return stream.replace.apply(stream, arguments);
+    };
 
     parser.onerror = function (err) {
         stream.emit("error", err)
@@ -68,11 +87,33 @@ module.exports = function (opts) {
         update('open', tag);
         stream.post('open', tag);
     };
+
+    //
+    // Pausing and resuming
+    //
+
+    var paused = false;
+
+    oldResume = parser.resume;
+    parser.resume = function() {
+        paused = false;
+        oldResume.call(parser);
+        bufferedStream.resume();
+    };
+
+    oldPause = parser.pause;
+    parser.pause = function() {
+        bufferedStream.pause();
+        paused = true;
+        oldPause.call(parser);
+    };
     
     parser.onclosetag = function (name) {
+        parser.pause();
         stream.pre('close', name);
         update('close');
         stream.post('close', name);
+        parser.resume();
     };
     
     parser.ontext = function (text) {
@@ -87,5 +128,5 @@ module.exports = function (opts) {
         stream.post('script', src);
     };
     
-    return stream;
+    return middle;
 };
